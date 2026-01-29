@@ -11,8 +11,7 @@ public class BillRepository : IBillRepository
     {
         _context = context;
     }
-
-    public async Task<IEnumerable<Bill>> GetAllAsync()
+     public async Task<IEnumerable<Bill>> GetAllAsync()
     {
         return await _context.Bills.ToListAsync();
     }

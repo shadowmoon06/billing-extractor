@@ -79,3 +79,7 @@ PublishOutput/
 *.temp
 *.cache
 *.bak
+
+
+.claude
+.vscode
