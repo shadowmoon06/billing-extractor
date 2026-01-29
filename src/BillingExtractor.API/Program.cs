@@ -1,6 +1,4 @@
-using BillingExtractor.Business.Services;
 using BillingExtractor.Data;
-using BillingExtractor.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 
@@ -20,12 +18,6 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
     options.InstanceName = "BillingExtractor:";
 });
-
-// Register Data layer services
-builder.Services.AddScoped<IBillRepository, BillRepository>();
-
-// Register Business layer services
-builder.Services.AddScoped<IBillService, BillService>();
 
 var app = builder.Build();
 
