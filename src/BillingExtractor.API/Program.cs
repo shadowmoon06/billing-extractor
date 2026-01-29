@@ -1,3 +1,4 @@
+using BillingExtractor.Business;
 using BillingExtractor.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
@@ -20,6 +21,10 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
     options.InstanceName = "BillingExtractor:";
 });
+
+// Register Business layer services
+var geminiApiKey = builder.Configuration["GeminiAPIKey"] ?? throw new InvalidOperationException("GeminiAPIKey is not configured");
+builder.Services.AddBusinessServices(geminiApiKey);
 
 var app = builder.Build();
 
