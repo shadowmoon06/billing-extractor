@@ -3,25 +3,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BillingExtractor.Data;
 
-public class BillingDbContext : DbContext
+public class BillingDbContext(DbContextOptions<BillingDbContext> options) : DbContext(options)
 {
-    public BillingDbContext(DbContextOptions<BillingDbContext> options) : base(options)
-    {
-    }
-
-    public DbSet<Bill> Bills => Set<Bill>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Bill>(entity =>
+        modelBuilder.Entity<Invoice>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.VendorName).IsRequired().HasMaxLength(200);
             entity.Property(e => e.InvoiceNumber).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Amount).HasPrecision(18, 2);
-            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.VendorName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
+
+            entity.HasIndex(e => e.InvoiceNumber);
+            entity.HasIndex(e => e.VendorName);
+
+            entity.OwnsMany(e => e.Items, items =>
+            {
+                items.ToJson();
+            });
         });
     }
 }
