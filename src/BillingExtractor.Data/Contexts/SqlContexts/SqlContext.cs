@@ -1,9 +1,9 @@
 using BillingExtractor.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace BillingExtractor.Data;
+namespace BillingExtractor.Data.Contexts;
 
-public class BillingDbContext(DbContextOptions<BillingDbContext> options) : DbContext(options)
+public class SqlContext(DbContextOptions<SqlContext> options) : DbContext(options)
 {
     public DbSet<Invoice> Invoices => Set<Invoice>();
 

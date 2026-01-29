@@ -1,4 +1,4 @@
-using BillingExtractor.Data;
+using BillingExtractor.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 
@@ -9,8 +9,10 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 // Register DbContext with PostgreSQL
-builder.Services.AddDbContext<BillingDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSQL")));
+var pgConfig = builder.Configuration.GetSection("PostgreSQL");
+var pgConnectionString = $"Host={pgConfig["Host"]};Port={pgConfig["Port"]};Database={pgConfig["Database"]};Username={pgConfig["Username"]};Password={pgConfig["Password"]}";
+builder.Services.AddDbContext<SqlContext>(options =>
+    options.UseNpgsql(pgConnectionString));
 
 // Register Redis distributed cache
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -54,7 +56,7 @@ async Task TestPostgreSqlAsync(IServiceProvider services, ILogger logger)
 {
     try
     {
-        var dbContext = services.GetRequiredService<BillingDbContext>();
+        var dbContext = services.GetRequiredService<SqlContext>();
         var canConnect = await dbContext.Database.CanConnectAsync();
 
         if (canConnect)
