@@ -9,6 +9,7 @@ public static class DependencyInjection
     public static IServiceCollection AddBusinessServices(this IServiceCollection services, string geminiApiKey)
     {
         services.AddSingleton<IGeminiService>(new GeminiService(geminiApiKey));
+        services.AddScoped<IInvoiceExtractionService, InvoiceExtractionService>();
 
         return services;
     }

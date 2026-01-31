@@ -1,4 +1,5 @@
 using BillingExtractor.API.Configurations;
+using BillingExtractor.Business.Interfaces;
 using BillingExtractor.Data.Contexts;
 using BillingExtractor.Data.Entities;
 using Microsoft.AspNetCore.Mvc;
@@ -10,14 +11,14 @@ namespace BillingExtractor.API.Controllers;
 public class InvoiceController(
     SqlContext context,
     IOptions<ImageUploadSettings> imageUploadSettings,
-    IWebHostEnvironment environment) : BaseController<Invoice>(context)
+    IInvoiceExtractionService invoiceExtractionService) : BaseController<Invoice>(context)
 {
     private readonly ImageUploadSettings _imageSettings = imageUploadSettings.Value;
 
     protected override DbSet<Invoice> DbSet => Context.Invoices;
 
-    [HttpPost("upload-images")]
-    public async Task<IActionResult> UploadImages(List<IFormFile> images)
+    [HttpPost("extract")]
+    public async Task<IActionResult> ExtractInvoiceInfo(List<IFormFile> images)
     {
         if (images is null || images.Count == 0)
         {
@@ -43,32 +44,24 @@ public class InvoiceController(
             return BadRequest(new { Errors = errors });
         }
 
-        var uploadPath = Path.Combine(environment.ContentRootPath, _imageSettings.UploadFolder);
-        if (!Directory.Exists(uploadPath))
-        {
-            Directory.CreateDirectory(uploadPath);
-        }
-
-        var uploadedFiles = new List<object>();
+        var results = new List<object>();
         foreach (var image in images)
         {
-            var fileExtension = Path.GetExtension(image.FileName);
-            var fileName = $"{Guid.NewGuid()}{fileExtension}";
-            var filePath = Path.Combine(uploadPath, fileName);
+            using var memoryStream = new MemoryStream();
+            await image.CopyToAsync(memoryStream);
+            var imageBytes = memoryStream.ToArray();
 
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await image.CopyToAsync(stream);
+            var extractedInfo = await invoiceExtractionService.ExtractFromImageAsync(imageBytes, image.ContentType);
 
-            uploadedFiles.Add(new
+            results.Add(new
             {
-                OriginalFileName = image.FileName,
-                FileName = fileName,
-                FilePath = Path.Combine(_imageSettings.UploadFolder, fileName),
+                FileName = image.FileName,
                 ContentType = image.ContentType,
-                Size = image.Length
+                Size = image.Length,
+                ExtractedInfo = extractedInfo
             });
         }
 
-        return Ok(new { UploadedFiles = uploadedFiles });
+        return Ok(new { Results = results });
     }
 }
