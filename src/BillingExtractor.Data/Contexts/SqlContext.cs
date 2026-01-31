@@ -25,6 +25,11 @@ public class SqlContext(DbContextOptions<SqlContext> options) : DbContext(option
             {
                 items.ToJson();
             });
+
+            entity.OwnsMany(e => e.Adjustments, adjustments =>
+            {
+                adjustments.ToJson();
+            });
         });
     }
 }

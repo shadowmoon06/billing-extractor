@@ -7,4 +7,5 @@ public class Invoice : BaseEntity
     public required string VendorName { get; set; }
     public required decimal TotalAmount { get; set; }
     public List<InvoiceItem> Items { get; set; } = [];
+    public List<InvoiceAdjustment> Adjustments { get; set; } = [];
 }

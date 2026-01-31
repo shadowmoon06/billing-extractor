@@ -10,11 +10,33 @@ Analyze this invoice image and extract the following information in JSON format:
             "description": "string or null",
             "quantity": number or null,
             "unitPrice": number or null,
-            "unit": "string or null (e.g., lbs, gallons, pcs)",
+            "unit": "string or null",
+            "amount": number or null
+        }
+    ],
+    "adjustments": [
+        {
+            "description": "string or null",
             "amount": number or null
         }
     ]
 }
+
+Field mapping guidance (document labels may vary):
+- "itemId": may appear as "Item #", "SKU", "Product Code", "Part No.", "Code", or similar identifiers
+- "description": may appear as "Item", "Product", "Name", "Item Description", "Goods", "Service", or similar
+- "quantity": may appear as "Qty", "Qty.", "Count", "Units", "No.", or similar
+- "unitPrice": may appear as "Price", "Unit Price", "Rate", "Price/Unit", "Each", or similar
+- "unit": may appear as "UOM", "Unit", "Measure", "Per" (e.g., lbs, kg, gallons, pcs, ea, box, case)
+- "amount": may appear as "Total", "Line Total", "Ext. Price", "Extended", "Subtotal", or similar
+- "vendorName": may appear as "Supplier", "Seller", "Company", "From", "Billed By", or similar
+- "invoiceNumber": may appear as "Invoice #", "Invoice No.", "Inv #", "Bill No.", "Reference", or similar
+- "adjustments": capture discounts, taxes, delivery fees, surcharges, credits, or any other line items that are not regular product/service items. Examples: "Discount", "Tax", "VAT", "GST", "Shipping", "Delivery Fee", "Handling", "Credit", "Adjustment", "Rebate", "Service Charge"
+
+IMPORTANT for adjustments amount:
+- If the amount is shown in parentheses like (10.00) or with a minus sign like -10.00, it should be a NEGATIVE number (e.g., -10.00)
+- Negative amounts represent deductions from the gross total (discounts, credits, rebates)
+- Positive amounts represent additions to the gross total (tax, delivery fee, surcharge)
 
 Return ONLY valid JSON without any markdown formatting or code blocks.
 If a field cannot be determined from the image, use null.

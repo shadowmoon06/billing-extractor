@@ -95,24 +95,47 @@ public class InvoiceController(
         var duplicateInvoiceNumbers = new List<string>();
         foreach (var group in groupedByInvoice)
         {
-            // Take the first extraction result for this invoice number
-            var info = group.First().Info;
+            // Take the first extraction result for invoice metadata
+            var firstInfo = group.First().Info;
 
             // Check if invoice already exists
-            var existingInvoice = await invoiceService.GetByInvoiceNumberAsync(info.InvoiceNumber!);
+            var existingInvoice = await invoiceService.GetByInvoiceNumberAsync(firstInfo.InvoiceNumber!);
             if (existingInvoice is not null)
             {
-                duplicateInvoiceNumbers.Add(info.InvoiceNumber!);
+                duplicateInvoiceNumbers.Add(firstInfo.InvoiceNumber!);
                 continue;
             }
 
+            // Combine items from all pages and calculate totals
+            var allItems = group.SelectMany(g => g.Info.Items).ToList();
+            var allAdjustments = group.SelectMany(g => g.Info.Adjustments).ToList();
+
+            // Calculate items total (quantity * unit price)
+            var itemsTotal = allItems.Sum(item => (item.Quantity ?? 0) * (item.UnitPrice ?? 0));
+
+            // Group adjustments by description and sum amounts
+            var groupedAdjustments = allAdjustments
+                .GroupBy(adj => adj.Description ?? "Other")
+                .Select(g => new InvoiceAdjustment
+                {
+                    Description = g.Key,
+                    Amount = g.Sum(a => a.Amount ?? 0)
+                })
+                .ToList();
+
+            // Sum all adjustments
+            var adjustmentsTotal = groupedAdjustments.Sum(adj => adj.Amount);
+
+            // Total = items + adjustments
+            var totalAmount = itemsTotal + adjustmentsTotal;
+
             var invoice = new Invoice
             {
-                InvoiceNumber = info.InvoiceNumber!,
-                IssuedDate = info.IssuedDate?.ToUniversalTime() ?? DateTime.UtcNow,
-                VendorName = info.VendorName ?? "Unknown",
-                TotalAmount = info.TotalAmount ?? 0,
-                Items = [.. info.Items.Select(item => new InvoiceItem
+                InvoiceNumber = firstInfo.InvoiceNumber!,
+                IssuedDate = firstInfo.IssuedDate?.ToUniversalTime() ?? DateTime.UtcNow,
+                VendorName = firstInfo.VendorName ?? "Unknown",
+                TotalAmount = totalAmount,
+                Items = [.. allItems.Select(item => new InvoiceItem
                 {
                     ItemId = item.ItemId ?? string.Empty,
                     Description = item.Description,
@@ -120,7 +143,8 @@ public class InvoiceController(
                     UnitPrice = item.UnitPrice ?? 0,
                     Unit = item.Unit ?? string.Empty,
                     Amount = item.Amount ?? 0
-                })]
+                })],
+                Adjustments = groupedAdjustments
             };
 
             var saved = await invoiceService.CreateAsync(invoice);
