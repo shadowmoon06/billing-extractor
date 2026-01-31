@@ -1,21 +1,51 @@
 using BillingExtractor.API.Configurations;
 using BillingExtractor.Business.Interfaces;
-using BillingExtractor.Data.Contexts;
 using BillingExtractor.Data.Entities;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace BillingExtractor.API.Controllers;
 
 public class InvoiceController(
-    SqlContext context,
+    IInvoiceService invoiceService,
     IOptions<ImageUploadSettings> imageUploadSettings,
-    IInvoiceExtractionService invoiceExtractionService) : BaseController<Invoice>(context)
+    IInvoiceExtractionService invoiceExtractionService) : BaseController
 {
     private readonly ImageUploadSettings _imageSettings = imageUploadSettings.Value;
 
-    protected override DbSet<Invoice> DbSet => Context.Invoices;
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var invoices = await invoiceService.GetAllAsync();
+        return Ok(invoices);
+    }
+
+    [HttpGet("{invoiceNumber}")]
+    public async Task<IActionResult> GetByInvoiceNumber(string invoiceNumber)
+    {
+        var invoice = await invoiceService.GetByInvoiceNumberAsync(invoiceNumber);
+        if (invoice is null)
+            return NotFound();
+
+        return Ok(invoice);
+    }
+
+    // [HttpPost]
+    // public async Task<IActionResult> Create([FromBody] Invoice invoice)
+    // {
+    //     var created = await invoiceService.CreateAsync(invoice);
+    //     return CreatedAtAction(nameof(GetByInvoiceNumber), new { invoiceNumber = created.InvoiceNumber }, created);
+    // }
+
+    [HttpDelete("{invoiceNumber}")]
+    public async Task<IActionResult> Delete(string invoiceNumber)
+    {
+        var deleted = await invoiceService.DeleteAsync(invoiceNumber);
+        if (!deleted)
+            return NotFound();
+
+        return NoContent();
+    }
 
     [HttpPost("extract")]
     public async Task<IActionResult> ExtractInvoiceInfo(List<IFormFile> images)

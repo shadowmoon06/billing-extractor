@@ -10,6 +10,7 @@ public static class DependencyInjection
     {
         services.AddSingleton<IGeminiService>(new GeminiService(geminiApiKey));
         services.AddScoped<IInvoiceExtractionService, InvoiceExtractionService>();
+        services.AddScoped<IInvoiceService, InvoiceService>();
 
         return services;
     }
