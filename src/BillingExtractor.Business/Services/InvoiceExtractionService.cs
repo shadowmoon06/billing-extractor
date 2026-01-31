@@ -7,23 +7,18 @@ namespace BillingExtractor.Business.Services;
 public class InvoiceExtractionService(IGeminiService geminiService) : IInvoiceExtractionService
 {
     private const string PromptFileName = "Prompts/InvoiceExtraction.txt";
-    private static string? _cachedPrompt;
+    private static readonly string _prompt;
+
+    static InvoiceExtractionService()
+    {
+        var promptPath = Path.Combine(AppContext.BaseDirectory, PromptFileName);
+        _prompt = File.ReadAllText(promptPath);
+    }
 
     public async Task<InvoiceExtractedInfo> ExtractFromImageAsync(byte[] imageBytes, string mimeType)
     {
-        var prompt = await GetPromptAsync();
-        var response = await geminiService.GenerateContentFromImageAsync(prompt, imageBytes, mimeType);
+        var response = await geminiService.GenerateContentFromImageAsync(_prompt, imageBytes, mimeType);
         return ParseResponse(response);
-    }
-
-    private static async Task<string> GetPromptAsync()
-    {
-        if (_cachedPrompt is not null)
-            return _cachedPrompt;
-
-        var promptPath = Path.Combine(AppContext.BaseDirectory, PromptFileName);
-        _cachedPrompt = await File.ReadAllTextAsync(promptPath);
-        return _cachedPrompt;
     }
 
     public async Task<InvoiceExtractedInfo> ExtractFromFilePathAsync(string filePath)
