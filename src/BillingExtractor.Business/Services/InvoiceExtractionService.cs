@@ -6,33 +6,24 @@ namespace BillingExtractor.Business.Services;
 
 public class InvoiceExtractionService(IGeminiService geminiService) : IInvoiceExtractionService
 {
-    private const string ExtractionPrompt = """
-        Analyze this invoice image and extract the following information in JSON format:
-        {
-            "invoiceNumber": "string or null",
-            "issuedDate": "YYYY-MM-DD format or null",
-            "vendorName": "string or null",
-            "totalAmount": number or null,
-            "items": [
-                {
-                    "itemId": "string or null",
-                    "description": "string or null",
-                    "quantity": number or null,
-                    "unitPrice": number or null,
-                    "unit": "string or null (e.g., lbs, gallons, pcs)",
-                    "amount": number or null
-                }
-            ]
-        }
-
-        Return ONLY valid JSON without any markdown formatting or code blocks.
-        If a field cannot be determined from the image, use null.
-        """;
+    private const string PromptFileName = "Prompts/InvoiceExtraction.txt";
+    private static string? _cachedPrompt;
 
     public async Task<InvoiceExtractedInfo> ExtractFromImageAsync(byte[] imageBytes, string mimeType)
     {
-        var response = await geminiService.GenerateContentFromImageAsync(ExtractionPrompt, imageBytes, mimeType);
+        var prompt = await GetPromptAsync();
+        var response = await geminiService.GenerateContentFromImageAsync(prompt, imageBytes, mimeType);
         return ParseResponse(response);
+    }
+
+    private static async Task<string> GetPromptAsync()
+    {
+        if (_cachedPrompt is not null)
+            return _cachedPrompt;
+
+        var promptPath = Path.Combine(AppContext.BaseDirectory, PromptFileName);
+        _cachedPrompt = await File.ReadAllTextAsync(promptPath);
+        return _cachedPrompt;
     }
 
     public async Task<InvoiceExtractedInfo> ExtractFromFilePathAsync(string filePath)

@@ -1,0 +1,20 @@
+Analyze this invoice image and extract the following information in JSON format:
+{
+    "invoiceNumber": "string or null",
+    "issuedDate": "YYYY-MM-DD format or null",
+    "vendorName": "string or null",
+    "totalAmount": number or null,
+    "items": [
+        {
+            "itemId": "string or null",
+            "description": "string or null",
+            "quantity": number or null,
+            "unitPrice": number or null,
+            "unit": "string or null (e.g., lbs, gallons, pcs)",
+            "amount": number or null
+        }
+    ]
+}
+
+Return ONLY valid JSON without any markdown formatting or code blocks.
+If a field cannot be determined from the image, use null.
