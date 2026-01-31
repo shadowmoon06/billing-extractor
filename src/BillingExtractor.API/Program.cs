@@ -1,3 +1,4 @@
+using BillingExtractor.API.Configurations;
 using BillingExtractor.Business;
 using BillingExtractor.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen();
+
+// Configure ImageUploadSettings
+builder.Services.Configure<ImageUploadSettings>(
+    builder.Configuration.GetSection(ImageUploadSettings.SectionName));
 
 // Register DbContext with PostgreSQL
 var pgConfig = builder.Configuration.GetSection("PostgreSQL");
@@ -35,6 +41,8 @@ await TestConnectionsAsync(app);
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
