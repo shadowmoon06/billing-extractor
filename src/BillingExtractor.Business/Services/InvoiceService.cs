@@ -1,6 +1,7 @@
 using BillingExtractor.Business.Interfaces;
+using BillingExtractor.Business.Models;
 using BillingExtractor.Data.Entities;
-using BillingExtractor.Data.Repositories.SqlRepositories.Interfaces;   
+using BillingExtractor.Data.Repositories.SqlRepositories.Interfaces;
 
 namespace BillingExtractor.Business.Services;
 
@@ -11,9 +12,17 @@ public class InvoiceService(IInvoiceRepository invoiceRepository) : IInvoiceServ
         return await invoiceRepository.GetByInvoiceNumberAsync(invoiceNumber);
     }
 
-    public async Task<IEnumerable<Invoice>> GetAllAsync()
+    public async Task<IEnumerable<InvoiceSummaryDto>> GetAllAsync()
     {
-        return await invoiceRepository.GetAllAsync();
+        var invoices = await invoiceRepository.GetAllAsync();
+        return invoices.Select(i => new InvoiceSummaryDto
+        {
+            InvoiceNumber = i.InvoiceNumber,
+            IssuedDate = i.IssuedDate,
+            VendorName = i.VendorName,
+            TotalAmount = i.TotalAmount,
+            LastEdited = i.CreatedAt
+        });
     }
 
     public async Task<Invoice> CreateAsync(Invoice invoice)
