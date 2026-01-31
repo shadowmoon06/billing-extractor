@@ -1,8 +1,9 @@
 using BillingExtractor.Data.Contexts;
 using BillingExtractor.Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using BillingExtractor.Data.Repositories.SqlRepositories.Interfaces;
 
-namespace BillingExtractor.Data.Repositories;
+namespace BillingExtractor.Data.Repositories.SqlRepositories;
 
 public class InvoiceRepository(SqlContext context) : IInvoiceRepository
 {

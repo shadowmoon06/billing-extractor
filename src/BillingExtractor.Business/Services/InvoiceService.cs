@@ -1,6 +1,6 @@
 using BillingExtractor.Business.Interfaces;
 using BillingExtractor.Data.Entities;
-using BillingExtractor.Data.Repositories;
+using BillingExtractor.Data.Repositories.SqlRepositories.Interfaces;   
 
 namespace BillingExtractor.Business.Services;
 

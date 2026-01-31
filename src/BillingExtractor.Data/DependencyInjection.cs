@@ -1,4 +1,5 @@
-using BillingExtractor.Data.Repositories;
+using BillingExtractor.Data.Repositories.SqlRepositories;
+using BillingExtractor.Data.Repositories.SqlRepositories.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BillingExtractor.Data;

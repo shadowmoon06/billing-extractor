@@ -1,6 +1,6 @@
 using BillingExtractor.Data.Entities;
 
-namespace BillingExtractor.Data.Repositories;
+namespace BillingExtractor.Data.Repositories.SqlRepositories.Interfaces;
 
 public interface IInvoiceRepository
 {
