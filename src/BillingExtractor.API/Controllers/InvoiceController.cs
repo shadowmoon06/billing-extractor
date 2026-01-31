@@ -74,7 +74,8 @@ public class InvoiceController(
             return BadRequest(new { Errors = errors });
         }
 
-        var results = new List<object>();
+        // Extract info from all images
+        var extractionResults = new List<(string FileName, Business.Models.InvoiceExtractedInfo Info)>();
         foreach (var image in images)
         {
             using var memoryStream = new MemoryStream();
@@ -82,16 +83,56 @@ public class InvoiceController(
             var imageBytes = memoryStream.ToArray();
 
             var extractedInfo = await invoiceExtractionService.ExtractFromImageAsync(imageBytes, image.ContentType);
-
-            results.Add(new
-            {
-                FileName = image.FileName,
-                ContentType = image.ContentType,
-                Size = image.Length,
-                ExtractedInfo = extractedInfo
-            });
+            extractionResults.Add((image.FileName, extractedInfo));
         }
 
-        return Ok(new { Results = results });
+        // Group by invoice number and insert
+        var groupedByInvoice = extractionResults
+            .Where(r => !string.IsNullOrEmpty(r.Info.InvoiceNumber))
+            .GroupBy(r => r.Info.InvoiceNumber!);
+
+        var savedInvoices = new List<Invoice>();
+        var duplicateInvoiceNumbers = new List<string>();
+        foreach (var group in groupedByInvoice)
+        {
+            // Take the first extraction result for this invoice number
+            var info = group.First().Info;
+
+            // Check if invoice already exists
+            var existingInvoice = await invoiceService.GetByInvoiceNumberAsync(info.InvoiceNumber!);
+            if (existingInvoice is not null)
+            {
+                duplicateInvoiceNumbers.Add(info.InvoiceNumber!);
+                continue;
+            }
+
+            var invoice = new Invoice
+            {
+                InvoiceNumber = info.InvoiceNumber!,
+                IssuedDate = info.IssuedDate?.ToUniversalTime() ?? DateTime.UtcNow,
+                VendorName = info.VendorName ?? "Unknown",
+                TotalAmount = info.TotalAmount ?? 0,
+                Items = [.. info.Items.Select(item => new InvoiceItem
+                {
+                    ItemId = item.ItemId ?? string.Empty,
+                    Description = item.Description,
+                    Quantity = item.Quantity ?? 0,
+                    UnitPrice = item.UnitPrice ?? 0,
+                    Unit = item.Unit ?? string.Empty,
+                    Amount = item.Amount ?? 0
+                })]
+            };
+
+            var saved = await invoiceService.CreateAsync(invoice);
+            savedInvoices.Add(saved);
+        }
+
+        return Ok(new
+        {
+            ExtractedCount = extractionResults.Count,
+            SavedInvoices = savedInvoices,
+            SkippedCount = extractionResults.Count(r => string.IsNullOrEmpty(r.Info.InvoiceNumber)),
+            DuplicateInvoiceNumbers = duplicateInvoiceNumbers
+        });
     }
 }
