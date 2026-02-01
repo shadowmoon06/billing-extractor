@@ -98,9 +98,36 @@ public class InvoiceController(
             extractionResults.Add((image.FileName, extractedInfo));
         });
 
+        // Validate required fields for each extraction
+        var extractionErrors = new List<string>();
+        foreach (var (fileName, info) in extractionResults)
+        {
+            var missingFields = new List<string>();
+
+            if (string.IsNullOrEmpty(info.InvoiceNumber))
+                missingFields.Add("Invoice Number");
+            if (string.IsNullOrEmpty(info.VendorName))
+                missingFields.Add("Vendor Name");
+            if (info.IssuedDate is null)
+                missingFields.Add("Issued Date");
+
+            if (missingFields.Count > 0)
+            {
+                extractionErrors.Add($"'{fileName}': Missing required fields - {string.Join(", ", missingFields)}");
+            }
+        }
+
+        if (extractionErrors.Count > 0)
+        {
+            return BadRequest(new
+            {
+                Message = "Failed to extract required information from one or more images",
+                Errors = extractionErrors
+            });
+        }
+
         // Group by invoice number and insert
         var groupedByInvoice = extractionResults
-            .Where(r => !string.IsNullOrEmpty(r.Info.InvoiceNumber))
             .GroupBy(r => r.Info.InvoiceNumber!);
 
         var savedInvoices = new List<Invoice>();
@@ -167,7 +194,6 @@ public class InvoiceController(
         {
             ExtractedCount = extractionResults.Count,
             SavedInvoices = savedInvoices,
-            SkippedCount = extractionResults.Count(r => string.IsNullOrEmpty(r.Info.InvoiceNumber)),
             DuplicateInvoiceNumbers = duplicateInvoiceNumbers
         });
     }

@@ -167,12 +167,6 @@ function UploadInvoiceModal({ onClose, onSuccess }: UploadInvoiceModalProps) {
                 </div>
               )}
 
-              {result.skippedCount > 0 && (
-                <div className="result-info">
-                  <p>{result.skippedCount} file(s) could not be processed (no invoice number found)</p>
-                </div>
-              )}
-
               {result.savedInvoices.length === 0 && result.duplicateInvoiceNumbers.length === 0 && (
                 <div className="result-info">
                   <p>No invoices were saved. Please check the uploaded images.</p>
