@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vs
+.vscode
+.idea
+*.suo
+*.user
+
+# Build outputs
+**/bin
+**/obj
+**/out
+
+# Test results
+**/TestResults
+
+# Frontend (built separately)
+frontend
+
+# Tests
+tests
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Misc
+*.md
+*.log
+.env
+.env.*

@@ -17,7 +17,10 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(
+                "http://localhost:5173",  // Vite dev server
+                "http://localhost:3000"   // Docker frontend
+              )
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -49,8 +52,8 @@ builder.Services.AddBusinessServices(geminiApiKey);
 
 var app = builder.Build();
 
-// Test database connections on startup
-await TestConnectionsAsync(app);
+// Apply migrations and test connections on startup
+await InitializeDatabaseAsync(app);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -60,9 +63,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
+// CORS must be before other middleware
 app.UseCors();
+
+// Only use HTTPS redirection in development (Docker uses HTTP internally)
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthorization();
 
@@ -70,37 +78,40 @@ app.MapControllers();
 
 app.Run();
 
-async Task TestConnectionsAsync(WebApplication app)
+async Task InitializeDatabaseAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-    // Test PostgreSQL connection
-    await TestPostgreSqlAsync(scope.ServiceProvider, logger);
+    // Apply pending migrations
+    await ApplyMigrationsAsync(scope.ServiceProvider, logger);
 
     // Test Redis connection
     await TestRedisAsync(scope.ServiceProvider, logger);
 }
 
-async Task TestPostgreSqlAsync(IServiceProvider services, ILogger logger)
+async Task ApplyMigrationsAsync(IServiceProvider services, ILogger logger)
 {
     try
     {
         var dbContext = services.GetRequiredService<SqlContext>();
-        var canConnect = await dbContext.Database.CanConnectAsync();
 
-        if (canConnect)
+        var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+        if (pendingMigrations.Any())
         {
-            logger.LogInformation("PostgreSQL connection successful");
+            logger.LogInformation("Applying {Count} pending migrations...", pendingMigrations.Count());
+            await dbContext.Database.MigrateAsync();
+            logger.LogInformation("Migrations applied successfully");
         }
         else
         {
-            logger.LogError("PostgreSQL connection failed: Unable to connect");
+            logger.LogInformation("Database is up to date, no migrations to apply");
         }
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "PostgreSQL connection failed: {Message}", ex.Message);
+        logger.LogError(ex, "Database migration failed: {Message}", ex.Message);
+        throw; // Fail fast if migrations fail
     }
 }
 
