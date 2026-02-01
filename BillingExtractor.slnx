@@ -4,4 +4,7 @@
     <Project Path="src/BillingExtractor.Business/BillingExtractor.Business.csproj" />
     <Project Path="src/BillingExtractor.Data/BillingExtractor.Data.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BillingExtractor.Business.Tests/BillingExtractor.Business.Tests.csproj" />
+  </Folder>
 </Solution>
