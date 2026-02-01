@@ -5,14 +5,82 @@ using BillingExtractor.Data.Repositories.SqlRepositories.Interfaces;
 
 namespace BillingExtractor.Business.Services;
 
-public class InvoiceService(IInvoiceRepository invoiceRepository) : IInvoiceService
+public class InvoiceService(
+    IInvoiceRepository invoiceRepository,
+    IInvoiceCacheService cacheRepository) : IInvoiceService
 {
     public async Task<InvoiceDetailDto?> GetByInvoiceNumberAsync(string invoiceNumber)
     {
+        // Try cache first
+        var cached = await cacheRepository.GetDetailAsync(invoiceNumber);
+        if (cached is not null)
+            return cached;
+
+        // Cache miss - fetch from SQL
         var invoice = await invoiceRepository.GetByInvoiceNumberAsync(invoiceNumber);
         if (invoice is null)
             return null;
 
+        var detail = MapToDetailDto(invoice);
+
+        // Store both summary and detail in cache
+        await Task.WhenAll(
+            cacheRepository.SetDetailAsync(invoiceNumber, detail),
+            cacheRepository.SetSummaryAsync(invoiceNumber, MapToSummaryDto(invoice))
+        );
+
+        return detail;
+    }
+
+    public async Task<IEnumerable<InvoiceSummaryDto>> GetAllAsync()
+    {
+        // Try cache first
+        var cached = await cacheRepository.GetAllSummariesAsync();
+        if (cached is not null)
+            return cached;
+
+        // Cache miss - fetch from SQL
+        var invoices = await invoiceRepository.GetAllAsync();
+        var summaries = invoices.Select(MapToSummaryDto).ToList();
+
+        // Store in cache
+        await cacheRepository.SetAllSummariesAsync(summaries);
+
+        return summaries;
+    }
+
+    public async Task<Invoice> CreateAsync(Invoice invoice)
+    {
+        var created = await invoiceRepository.CreateAsync(invoice);
+
+        // Store both summary and detail in cache
+        var detail = MapToDetailDto(created);
+        var summary = MapToSummaryDto(created);
+
+        await Task.WhenAll(
+            cacheRepository.SetDetailAsync(created.InvoiceNumber, detail),
+            cacheRepository.SetSummaryAsync(created.InvoiceNumber, summary),
+            cacheRepository.InvalidateAllSummariesAsync() // Invalidate list cache
+        );
+
+        return created;
+    }
+
+    public async Task<bool> DeleteAsync(string invoiceNumber)
+    {
+        var deleted = await invoiceRepository.DeleteAsync(invoiceNumber);
+
+        if (deleted)
+        {
+            // Remove from cache
+            await cacheRepository.DeleteAsync(invoiceNumber);
+        }
+
+        return deleted;
+    }
+
+    private static InvoiceDetailDto MapToDetailDto(Invoice invoice)
+    {
         return new InvoiceDetailDto
         {
             InvoiceNumber = invoice.InvoiceNumber,
@@ -37,26 +105,15 @@ public class InvoiceService(IInvoiceRepository invoiceRepository) : IInvoiceServ
         };
     }
 
-    public async Task<IEnumerable<InvoiceSummaryDto>> GetAllAsync()
+    private static InvoiceSummaryDto MapToSummaryDto(Invoice invoice)
     {
-        var invoices = await invoiceRepository.GetAllAsync();
-        return invoices.Select(i => new InvoiceSummaryDto
+        return new InvoiceSummaryDto
         {
-            InvoiceNumber = i.InvoiceNumber,
-            IssuedDate = i.IssuedDate,
-            VendorName = i.VendorName,
-            TotalAmount = i.TotalAmount,
-            LastEdited = i.UpdatedAt ?? i.CreatedAt
-        });
-    }
-
-    public async Task<Invoice> CreateAsync(Invoice invoice)
-    {
-        return await invoiceRepository.CreateAsync(invoice);
-    }
-
-    public async Task<bool> DeleteAsync(string invoiceNumber)
-    {
-        return await invoiceRepository.DeleteAsync(invoiceNumber);
+            InvoiceNumber = invoice.InvoiceNumber,
+            IssuedDate = invoice.IssuedDate,
+            VendorName = invoice.VendorName,
+            TotalAmount = invoice.TotalAmount,
+            LastEdited = invoice.UpdatedAt ?? invoice.CreatedAt
+        };
     }
 }
