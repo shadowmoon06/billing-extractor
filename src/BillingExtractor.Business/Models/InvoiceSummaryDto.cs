@@ -1,11 +1,10 @@
-namespace BillingExtractor.Data.Entities;
+namespace BillingExtractor.Business.Models;
 
-public class Invoice : BaseEntity
+public class InvoiceSummaryDto
 {
     public required string InvoiceNumber { get; set; }
     public required DateTime IssuedDate { get; set; }
     public required string VendorName { get; set; }
     public required decimal TotalAmount { get; set; }
-    public List<InvoiceItem> Items { get; set; } = [];
-    public List<InvoiceAdjustment> Adjustments { get; set; } = [];
+    public required DateTime LastEdited { get; set; }
 }

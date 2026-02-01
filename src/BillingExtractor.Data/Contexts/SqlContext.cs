@@ -18,12 +18,17 @@ public class SqlContext(DbContextOptions<SqlContext> options) : DbContext(option
             entity.Property(e => e.VendorName).IsRequired().HasMaxLength(200);
             entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
 
-            entity.HasIndex(e => e.InvoiceNumber);
+            entity.HasIndex(e => e.InvoiceNumber).IsUnique();
             entity.HasIndex(e => e.VendorName);
 
             entity.OwnsMany(e => e.Items, items =>
             {
                 items.ToJson();
+            });
+
+            entity.OwnsMany(e => e.Adjustments, adjustments =>
+            {
+                adjustments.ToJson();
             });
         });
     }

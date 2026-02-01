@@ -1,3 +1,6 @@
+using BillingExtractor.API.Configurations;
+using BillingExtractor.Business;
+using BillingExtractor.Data;
 using BillingExtractor.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
@@ -7,6 +10,22 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen();
+
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// Configure ImageUploadSettings
+builder.Services.Configure<ImageUploadSettings>(
+    builder.Configuration.GetSection(ImageUploadSettings.SectionName));
 
 // Register DbContext with PostgreSQL
 var pgConfig = builder.Configuration.GetSection("PostgreSQL");
@@ -21,6 +40,13 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = "BillingExtractor:";
 });
 
+// Register Data layer services
+builder.Services.AddDataServices();
+
+// Register Business layer services
+var geminiApiKey = builder.Configuration["GeminiAPIKey"] ?? throw new InvalidOperationException("GeminiAPIKey is not configured");
+builder.Services.AddBusinessServices(geminiApiKey);
+
 var app = builder.Build();
 
 // Test database connections on startup
@@ -30,9 +56,13 @@ await TestConnectionsAsync(app);
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors();
 
 app.UseAuthorization();
 
