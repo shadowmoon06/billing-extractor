@@ -28,6 +28,7 @@ CRITICAL - These fields are almost ALWAYS present on invoices. Look harder if in
 - invoiceNumber: Check headers, top-right corner, reference sections, "Invoice #", "Inv No.", "Bill No.", "Reference No."
 - vendorName: Check letterhead, logo area, "From:", "Seller:", "Supplier:", company stamps
 - issuedDate: Check near invoice number, "Date:", "Invoice Date:", "Issued:", top-right area
+- totalAmount: This is the FINAL TOTAL of the entire invoice (e.g., "Total Due", "Amount Due", "Grand Total", "Total Amount"). Do NOT use subtotals or partial totals.
 
 Field mapping guidance (document labels may vary):
 - "itemId": may appear as "Item #", "SKU", "Product Code", "Part No.", "Code", or similar identifiers

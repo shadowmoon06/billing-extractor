@@ -98,52 +98,47 @@ public class InvoiceController(
             extractionResults.Add((image.FileName, extractedInfo));
         });
 
-        // Validate required fields for each extraction
-        var extractionErrors = new List<string>();
-        foreach (var (fileName, info) in extractionResults)
-        {
-            var missingFields = new List<string>();
-
-            if (string.IsNullOrEmpty(info.InvoiceNumber))
-                missingFields.Add("Invoice Number");
-            if (string.IsNullOrEmpty(info.VendorName))
-                missingFields.Add("Vendor Name");
-            if (info.IssuedDate is null)
-                missingFields.Add("Issued Date");
-
-            if (missingFields.Count > 0)
-            {
-                extractionErrors.Add($"'{fileName}': Missing required fields - {string.Join(", ", missingFields)}");
-            }
-        }
-
-        if (extractionErrors.Count > 0)
-        {
-            return BadRequest(new
-            {
-                Message = "Failed to extract required information from one or more images",
-                Errors = extractionErrors
-            });
-        }
-
         // Group by invoice number and insert
         var groupedByInvoice = extractionResults
-            .GroupBy(r => r.Info.InvoiceNumber!);
+            .GroupBy(r => r.Info.InvoiceNumber ?? string.Empty);
 
         var savedInvoices = new List<Invoice>();
         var duplicateInvoiceNumbers = new List<string>();
         var amountMismatchWarnings = new List<string>();
+        var extractionErrors = new List<string>();
 
         foreach (var group in groupedByInvoice)
         {
-            // Take the first extraction result for invoice metadata
-            var firstInfo = group.First().Info;
+            // Combine data from all pages for this invoice
+            var fileNames = group.Select(g => g.FileName).ToList();
+            var allInfos = group.Select(g => g.Info).ToList();
+
+            // Get combined metadata (prefer non-null/non-empty values from any page)
+            var invoiceNumber = allInfos.FirstOrDefault(i => !string.IsNullOrEmpty(i.InvoiceNumber))?.InvoiceNumber;
+            var vendorName = allInfos.FirstOrDefault(i => !string.IsNullOrEmpty(i.VendorName))?.VendorName;
+            var issuedDate = allInfos.FirstOrDefault(i => i.IssuedDate is not null)?.IssuedDate;
+
+            // Validate required fields for the grouped invoice
+            var missingFields = new List<string>();
+            if (string.IsNullOrEmpty(invoiceNumber))
+                missingFields.Add("Invoice Number");
+            if (string.IsNullOrEmpty(vendorName))
+                missingFields.Add("Vendor Name");
+            if (issuedDate is null)
+                missingFields.Add("Issued Date");
+
+            if (missingFields.Count > 0)
+            {
+                var filesDescription = string.Join(", ", fileNames.Select(f => $"'{f}'"));
+                extractionErrors.Add($"Files [{filesDescription}]: Missing required fields - {string.Join(", ", missingFields)}");
+                continue;
+            }
 
             // Check if invoice already exists
-            var existingInvoice = await invoiceService.GetByInvoiceNumberAsync(firstInfo.InvoiceNumber!);
+            var existingInvoice = await invoiceService.GetByInvoiceNumberAsync(invoiceNumber!);
             if (existingInvoice is not null)
             {
-                duplicateInvoiceNumbers.Add(firstInfo.InvoiceNumber!);
+                duplicateInvoiceNumbers.Add(invoiceNumber!);
                 continue;
             }
 
@@ -177,7 +172,7 @@ public class InvoiceController(
             if (extractedTotal > 0 && Math.Abs(extractedTotal - calculatedTotal) > 0.01m)
             {
                 amountMismatchWarnings.Add(
-                    $"Invoice '{firstInfo.InvoiceNumber}': Extracted total ({extractedTotal:C}) differs from calculated total ({calculatedTotal:C})");
+                    $"Invoice '{invoiceNumber}': Extracted total ({extractedTotal:C}) differs from calculated total ({calculatedTotal:C})");
             }
 
             // Use calculated total for consistency
@@ -185,9 +180,9 @@ public class InvoiceController(
 
             var invoice = new Invoice
             {
-                InvoiceNumber = firstInfo.InvoiceNumber!,
-                IssuedDate = firstInfo.IssuedDate?.ToUniversalTime() ?? DateTime.UtcNow,
-                VendorName = firstInfo.VendorName ?? "Unknown",
+                InvoiceNumber = invoiceNumber!,
+                IssuedDate = issuedDate!.Value.ToUniversalTime(),
+                VendorName = vendorName!,
                 TotalAmount = totalAmount,
                 Items = [.. allItems.Select(item => new InvoiceItem
                 {
@@ -203,6 +198,15 @@ public class InvoiceController(
 
             var saved = await invoiceService.CreateAsync(invoice);
             savedInvoices.Add(saved);
+        }
+
+        if (extractionErrors.Count > 0)
+        {
+            return BadRequest(new
+            {
+                Message = "Failed to extract required information from one or more invoices",
+                Errors = extractionErrors
+            });
         }
 
         return Ok(new
