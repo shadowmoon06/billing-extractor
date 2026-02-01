@@ -58,6 +58,11 @@ public class InvoiceController(
             return BadRequest("No image files provided");
         }
 
+        if (images.Count > _imageSettings.MaxFilesPerRequest)
+        {
+            return BadRequest($"Maximum {_imageSettings.MaxFilesPerRequest} images allowed per request");
+        }
+
         var errors = new List<string>();
         for (int i = 0; i < images.Count; i++)
         {

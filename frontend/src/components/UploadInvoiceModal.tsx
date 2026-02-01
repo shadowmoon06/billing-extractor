@@ -7,6 +7,8 @@ interface UploadInvoiceModalProps {
   onSuccess: () => void;
 }
 
+const MAX_FILES = 10;
+
 function UploadInvoiceModal({ onClose, onSuccess }: UploadInvoiceModalProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -16,7 +18,12 @@ function UploadInvoiceModal({ onClose, onSuccess }: UploadInvoiceModalProps) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFiles(Array.from(e.target.files));
+      const selectedFiles = Array.from(e.target.files);
+      if (selectedFiles.length > MAX_FILES) {
+        setError(`Maximum ${MAX_FILES} images allowed per upload`);
+        return;
+      }
+      setFiles(selectedFiles);
       setError(null);
       setResult(null);
     }
@@ -27,6 +34,10 @@ function UploadInvoiceModal({ onClose, onSuccess }: UploadInvoiceModalProps) {
     const droppedFiles = Array.from(e.dataTransfer.files).filter(
       (file) => file.type === 'image/jpeg' || file.type === 'image/png'
     );
+    if (droppedFiles.length > MAX_FILES) {
+      setError(`Maximum ${MAX_FILES} images allowed per upload`);
+      return;
+    }
     if (droppedFiles.length > 0) {
       setFiles(droppedFiles);
       setError(null);
@@ -99,7 +110,7 @@ function UploadInvoiceModal({ onClose, onSuccess }: UploadInvoiceModalProps) {
                 <div className="dropzone-content">
                   <span className="dropzone-icon">+</span>
                   <p>Drop images here or click to browse</p>
-                  <span className="dropzone-hint">Supports JPG, PNG</span>
+                  <span className="dropzone-hint">Supports JPG, PNG (max {MAX_FILES} files)</span>
                 </div>
               </div>
 
