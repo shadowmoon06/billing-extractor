@@ -2,10 +2,12 @@ using BillingExtractor.API.Configurations;
 using BillingExtractor.Business.Interfaces;
 using BillingExtractor.Data.Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace BillingExtractor.API.Controllers;
 
+[EnableRateLimiting("fixed")]
 public class InvoiceController(
     IInvoiceService invoiceService,
     IOptions<ImageUploadSettings> imageUploadSettings,
@@ -48,6 +50,7 @@ public class InvoiceController(
     }
 
     [HttpPost("extract")]
+    [EnableRateLimiting("extract")]
     public async Task<IActionResult> ExtractInvoiceInfo(List<IFormFile> images)
     {
         if (images is null || images.Count == 0)
