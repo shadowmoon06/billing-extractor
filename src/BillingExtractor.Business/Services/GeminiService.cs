@@ -7,7 +7,7 @@ namespace BillingExtractor.Business.Services;
 public class GeminiService(string apiKey) : IGeminiService
 {
     private readonly Client _client = new(apiKey: apiKey);
-    private const string Model = "gemini-2.5-flash";
+    private const string Model = "gemini-3-flash-preview";
 
     public async Task<string> GenerateContentAsync(string prompt)
     {

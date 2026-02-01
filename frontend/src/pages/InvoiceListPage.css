@@ -1,0 +1,369 @@
+/* CSS Variables matching shadcn design */
+:root {
+  --background: #fafafa;
+  --foreground: #0a0a0a;
+  --card: #fafafa;
+  --card-foreground: #0a0a0a;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+  --radius: 6px;
+}
+
+/* Page Layout */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px;
+  background: var(--background);
+  min-height: 100vh;
+}
+
+/* Page Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.header-text h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.header-text p {
+  font-size: 14px;
+  color: var(--muted-foreground);
+  margin: 4px 0 0 0;
+}
+
+/* Card */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* Table Header */
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Search Input */
+.search-input {
+  width: 300px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: 'Inter', system-ui, sans-serif;
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.search-input:focus {
+  border-color: var(--primary);
+}
+
+/* Buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn-destructive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #fafafa;
+  background: #dc2626;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-destructive:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-destructive:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost-destructive {
+  color: #dc2626;
+}
+
+/* Table */
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+thead tr {
+  background: var(--muted);
+}
+
+th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 12px;
+  color: var(--foreground);
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr:hover {
+  background: var(--muted);
+}
+
+/* Column Widths */
+.col-invoice {
+  width: 150px;
+}
+
+.col-date {
+  width: 120px;
+}
+
+.col-vendor {
+  /* flex grow */
+}
+
+.col-amount {
+  width: 120px;
+}
+
+.col-edited {
+  width: 140px;
+}
+
+.col-actions {
+  width: 100px;
+  text-align: center;
+}
+
+/* Text Utilities */
+.font-medium {
+  font-weight: 500;
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.text-red-600 {
+  color: #dc2626;
+}
+
+/* Table Footer */
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.footer-text {
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 4px;
+}
+
+.page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--foreground);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.page-btn:hover {
+  background: var(--muted);
+}
+
+.page-btn.active {
+  background: var(--background);
+  border-color: var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* States */
+.loading-state,
+.error-state,
+.empty-state {
+  padding: 48px;
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+.error-state {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .table-footer {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .col-edited {
+    display: none;
+  }
+}

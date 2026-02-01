@@ -5,7 +5,7 @@ namespace BillingExtractor.Business.Interfaces;
 
 public interface IInvoiceService
 {
-    Task<Invoice?> GetByInvoiceNumberAsync(string invoiceNumber);
+    Task<InvoiceDetailDto?> GetByInvoiceNumberAsync(string invoiceNumber);
     Task<IEnumerable<InvoiceSummaryDto>> GetAllAsync();
     Task<Invoice> CreateAsync(Invoice invoice);
     Task<bool> DeleteAsync(string invoiceNumber);
