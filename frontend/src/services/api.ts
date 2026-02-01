@@ -9,8 +9,8 @@ export interface ExtractInvoiceResponse {
     vendorName: string;
     totalAmount: number;
   }>;
-  skippedCount: number;
   duplicateInvoiceNumbers: string[];
+  amountMismatchWarnings: string[];
 }
 
 export async function extractInvoice(files: File[]): Promise<ExtractInvoiceResponse> {
@@ -26,7 +26,10 @@ export async function extractInvoice(files: File[]): Promise<ExtractInvoiceRespo
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.errors?.join(', ') || 'Failed to extract invoice');
+    const errorMessage = error.message
+      ? `${error.message}: ${error.errors?.join('; ') || ''}`
+      : error.errors?.join(', ') || 'Failed to extract invoice';
+    throw new Error(errorMessage);
   }
 
   return response.json();

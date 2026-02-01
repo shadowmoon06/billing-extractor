@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using BillingExtractor.API.Configurations;
 using BillingExtractor.Business.Interfaces;
 using BillingExtractor.Data.Entities;
@@ -14,6 +15,7 @@ public class InvoiceController(
     IInvoiceExtractionService invoiceExtractionService) : BaseController
 {
     private readonly ImageUploadSettings _imageSettings = imageUploadSettings.Value;
+    private const int MaxConcurrentExtractions = 5;
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -58,6 +60,11 @@ public class InvoiceController(
             return BadRequest("No image files provided");
         }
 
+        if (images.Count > _imageSettings.MaxFilesPerRequest)
+        {
+            return BadRequest($"Maximum {_imageSettings.MaxFilesPerRequest} images allowed per request");
+        }
+
         var errors = new List<string>();
         for (int i = 0; i < images.Count; i++)
         {
@@ -77,35 +84,61 @@ public class InvoiceController(
             return BadRequest(new { Errors = errors });
         }
 
-        // Extract info from all images
-        var extractionResults = new List<(string FileName, Business.Models.InvoiceExtractedInfo Info)>();
-        foreach (var image in images)
+        // Extract info from all images with limited concurrency
+        var extractionResults = new ConcurrentBag<(string FileName, Business.Models.InvoiceExtractedInfo Info)>();
+        var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = MaxConcurrentExtractions };
+
+        await Parallel.ForEachAsync(images, parallelOptions, async (image, ct) =>
         {
             using var memoryStream = new MemoryStream();
-            await image.CopyToAsync(memoryStream);
+            await image.CopyToAsync(memoryStream, ct);
             var imageBytes = memoryStream.ToArray();
 
             var extractedInfo = await invoiceExtractionService.ExtractFromImageAsync(imageBytes, image.ContentType);
             extractionResults.Add((image.FileName, extractedInfo));
-        }
+        });
 
         // Group by invoice number and insert
         var groupedByInvoice = extractionResults
-            .Where(r => !string.IsNullOrEmpty(r.Info.InvoiceNumber))
-            .GroupBy(r => r.Info.InvoiceNumber!);
+            .GroupBy(r => r.Info.InvoiceNumber ?? string.Empty);
 
         var savedInvoices = new List<Invoice>();
         var duplicateInvoiceNumbers = new List<string>();
+        var amountMismatchWarnings = new List<string>();
+        var extractionErrors = new List<string>();
+
         foreach (var group in groupedByInvoice)
         {
-            // Take the first extraction result for invoice metadata
-            var firstInfo = group.First().Info;
+            // Combine data from all pages for this invoice
+            var fileNames = group.Select(g => g.FileName).ToList();
+            var allInfos = group.Select(g => g.Info).ToList();
+
+            // Get combined metadata (prefer non-null/non-empty values from any page)
+            var invoiceNumber = allInfos.FirstOrDefault(i => !string.IsNullOrEmpty(i.InvoiceNumber))?.InvoiceNumber;
+            var vendorName = allInfos.FirstOrDefault(i => !string.IsNullOrEmpty(i.VendorName))?.VendorName;
+            var issuedDate = allInfos.FirstOrDefault(i => i.IssuedDate is not null)?.IssuedDate;
+
+            // Validate required fields for the grouped invoice
+            var missingFields = new List<string>();
+            if (string.IsNullOrEmpty(invoiceNumber))
+                missingFields.Add("Invoice Number");
+            if (string.IsNullOrEmpty(vendorName))
+                missingFields.Add("Vendor Name");
+            if (issuedDate is null)
+                missingFields.Add("Issued Date");
+
+            if (missingFields.Count > 0)
+            {
+                var filesDescription = string.Join(", ", fileNames.Select(f => $"'{f}'"));
+                extractionErrors.Add($"Files [{filesDescription}]: Missing required fields - {string.Join(", ", missingFields)}");
+                continue;
+            }
 
             // Check if invoice already exists
-            var existingInvoice = await invoiceService.GetByInvoiceNumberAsync(firstInfo.InvoiceNumber!);
+            var existingInvoice = await invoiceService.GetByInvoiceNumberAsync(invoiceNumber!);
             if (existingInvoice is not null)
             {
-                duplicateInvoiceNumbers.Add(firstInfo.InvoiceNumber!);
+                duplicateInvoiceNumbers.Add(invoiceNumber!);
                 continue;
             }
 
@@ -130,13 +163,26 @@ public class InvoiceController(
             var adjustmentsTotal = groupedAdjustments.Sum(adj => adj.Amount);
 
             // Total = items + adjustments
-            var totalAmount = itemsTotal + adjustmentsTotal;
+            var calculatedTotal = itemsTotal + adjustmentsTotal;
+
+            // Get extracted total from image (sum from all pages for this invoice)
+            var extractedTotal = group.Sum(g => g.Info.TotalAmount ?? 0);
+
+            // Compare extracted vs calculated total (allow small rounding difference)
+            if (extractedTotal > 0 && Math.Abs(extractedTotal - calculatedTotal) > 0.01m)
+            {
+                amountMismatchWarnings.Add(
+                    $"Invoice '{invoiceNumber}': Extracted total ({extractedTotal:C}) differs from calculated total ({calculatedTotal:C})");
+            }
+
+            // Use calculated total for consistency
+            var totalAmount = calculatedTotal;
 
             var invoice = new Invoice
             {
-                InvoiceNumber = firstInfo.InvoiceNumber!,
-                IssuedDate = firstInfo.IssuedDate?.ToUniversalTime() ?? DateTime.UtcNow,
-                VendorName = firstInfo.VendorName ?? "Unknown",
+                InvoiceNumber = invoiceNumber!,
+                IssuedDate = issuedDate!.Value.ToUniversalTime(),
+                VendorName = vendorName!,
                 TotalAmount = totalAmount,
                 Items = [.. allItems.Select(item => new InvoiceItem
                 {
@@ -154,12 +200,21 @@ public class InvoiceController(
             savedInvoices.Add(saved);
         }
 
+        if (extractionErrors.Count > 0)
+        {
+            return BadRequest(new
+            {
+                Message = "Failed to extract required information from one or more invoices",
+                Errors = extractionErrors
+            });
+        }
+
         return Ok(new
         {
             ExtractedCount = extractionResults.Count,
             SavedInvoices = savedInvoices,
-            SkippedCount = extractionResults.Count(r => string.IsNullOrEmpty(r.Info.InvoiceNumber)),
-            DuplicateInvoiceNumbers = duplicateInvoiceNumbers
+            DuplicateInvoiceNumbers = duplicateInvoiceNumbers,
+            AmountMismatchWarnings = amountMismatchWarnings
         });
     }
 }

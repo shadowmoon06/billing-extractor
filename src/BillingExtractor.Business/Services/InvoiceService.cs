@@ -51,19 +51,32 @@ public class InvoiceService(
 
     public async Task<Invoice> CreateAsync(Invoice invoice)
     {
-        var created = await invoiceRepository.CreateAsync(invoice);
+        // Check if a soft-deleted invoice exists with the same invoice number
+        var deletedInvoice = await invoiceRepository.GetDeletedByInvoiceNumberAsync(invoice.InvoiceNumber);
+
+        Invoice result;
+        if (deletedInvoice is not null)
+        {
+            // Restore the soft-deleted invoice with new data
+            result = await invoiceRepository.RestoreAsync(deletedInvoice, invoice);
+        }
+        else
+        {
+            // Create new invoice
+            result = await invoiceRepository.CreateAsync(invoice);
+        }
 
         // Store both summary and detail in cache
-        var detail = MapToDetailDto(created);
-        var summary = MapToSummaryDto(created);
+        var detail = MapToDetailDto(result);
+        var summary = MapToSummaryDto(result);
 
         await Task.WhenAll(
-            cacheRepository.SetDetailAsync(created.InvoiceNumber, detail),
-            cacheRepository.SetSummaryAsync(created.InvoiceNumber, summary),
+            cacheRepository.SetDetailAsync(result.InvoiceNumber, detail),
+            cacheRepository.SetSummaryAsync(result.InvoiceNumber, summary),
             cacheRepository.InvalidateAllSummariesAsync() // Invalidate list cache
         );
 
-        return created;
+        return result;
     }
 
     public async Task<bool> DeleteAsync(string invoiceNumber)

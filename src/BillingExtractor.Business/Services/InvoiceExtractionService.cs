@@ -7,7 +7,10 @@ namespace BillingExtractor.Business.Services;
 public class InvoiceExtractionService(IGeminiService geminiService) : IInvoiceExtractionService
 {
     private const string PromptFileName = "Prompts/InvoiceExtraction.txt";
+    private const int MaxConcurrentExtractions = 10;
+
     private static readonly string _prompt;
+    private static readonly SemaphoreSlim _semaphore = new(MaxConcurrentExtractions);
 
     static InvoiceExtractionService()
     {
@@ -17,8 +20,16 @@ public class InvoiceExtractionService(IGeminiService geminiService) : IInvoiceEx
 
     public async Task<InvoiceExtractedInfo> ExtractFromImageAsync(byte[] imageBytes, string mimeType)
     {
-        var response = await geminiService.GenerateContentFromImageAsync(_prompt, imageBytes, mimeType);
-        return ParseResponse(response);
+        await _semaphore.WaitAsync();
+        try
+        {
+            var response = await geminiService.GenerateContentFromImageAsync(_prompt, imageBytes, mimeType);
+            return ParseResponse(response);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
     public async Task<InvoiceExtractedInfo> ExtractFromFilePathAsync(string filePath)
