@@ -217,10 +217,12 @@ public class InvoiceServiceTests
     #region CreateAsync Tests
 
     [Fact]
-    public async Task CreateAsync_CreatesInSqlAndCaches()
+    public async Task CreateAsync_WhenNoDeletedInvoice_CreatesNewAndCaches()
     {
         // Arrange
         var invoice = CreateTestInvoice("INV-NEW");
+        _invoiceRepositoryMock.Setup(x => x.GetDeletedByInvoiceNumberAsync(invoice.InvoiceNumber))
+            .ReturnsAsync((Invoice?)null);
         _invoiceRepositoryMock.Setup(x => x.CreateAsync(invoice))
             .ReturnsAsync(invoice);
 
@@ -228,7 +230,8 @@ public class InvoiceServiceTests
         var result = await _sut.CreateAsync(invoice);
 
         // Assert
-        result.Should().Be(invoice);
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(invoice);
         _invoiceRepositoryMock.Verify(x => x.CreateAsync(invoice), Times.Once);
         _cacheServiceMock.Verify(x => x.SetDetailAsync(invoice.InvoiceNumber, It.IsAny<InvoiceDetailDto>()), Times.Once);
         _cacheServiceMock.Verify(x => x.SetSummaryAsync(invoice.InvoiceNumber, It.IsAny<InvoiceSummaryDto>()), Times.Once);
@@ -236,10 +239,55 @@ public class InvoiceServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_WhenDeletedInvoiceExists_RestoresAndCaches()
+    {
+        // Arrange
+        var invoice = CreateTestInvoice("INV-RESTORE");
+        var deletedInvoice = CreateTestInvoice("INV-RESTORE");
+        deletedInvoice.DeletedAt = DateTime.UtcNow;
+
+        _invoiceRepositoryMock.Setup(x => x.GetDeletedByInvoiceNumberAsync(invoice.InvoiceNumber))
+            .ReturnsAsync(deletedInvoice);
+        _invoiceRepositoryMock.Setup(x => x.RestoreAsync(deletedInvoice, invoice))
+            .ReturnsAsync(invoice);
+
+        // Act
+        var result = await _sut.CreateAsync(invoice);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(invoice);
+        _invoiceRepositoryMock.Verify(x => x.RestoreAsync(deletedInvoice, invoice), Times.Once);
+        _invoiceRepositoryMock.Verify(x => x.CreateAsync(It.IsAny<Invoice>()), Times.Never);
+        _cacheServiceMock.Verify(x => x.InvalidateAllSummariesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenExceptionThrown_ReturnsFailure()
+    {
+        // Arrange
+        var invoice = CreateTestInvoice("INV-ERROR");
+        _invoiceRepositoryMock.Setup(x => x.GetDeletedByInvoiceNumberAsync(invoice.InvoiceNumber))
+            .ReturnsAsync((Invoice?)null);
+        _invoiceRepositoryMock.Setup(x => x.CreateAsync(invoice))
+            .ThrowsAsync(new Exception("Database error"));
+
+        // Act
+        var result = await _sut.CreateAsync(invoice);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("Failed to create invoice");
+        result.Error.Should().Contain("Database error");
+    }
+
+    [Fact]
     public async Task CreateAsync_InvalidatesAllSummariesCache()
     {
         // Arrange
         var invoice = CreateTestInvoice("INV-NEW");
+        _invoiceRepositoryMock.Setup(x => x.GetDeletedByInvoiceNumberAsync(invoice.InvoiceNumber))
+            .ReturnsAsync((Invoice?)null);
         _invoiceRepositoryMock.Setup(x => x.CreateAsync(invoice))
             .ReturnsAsync(invoice);
 
@@ -255,7 +303,7 @@ public class InvoiceServiceTests
     #region DeleteAsync Tests
 
     [Fact]
-    public async Task DeleteAsync_WhenSuccessful_RemovesFromCache()
+    public async Task DeleteAsync_WhenSuccessful_RemovesFromCacheAndReturnsSuccess()
     {
         // Arrange
         var invoiceNumber = "INV-001";
@@ -266,12 +314,13 @@ public class InvoiceServiceTests
         var result = await _sut.DeleteAsync(invoiceNumber);
 
         // Assert
-        result.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeTrue();
         _cacheServiceMock.Verify(x => x.DeleteAsync(invoiceNumber), Times.Once);
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenNotFound_DoesNotRemoveFromCache()
+    public async Task DeleteAsync_WhenNotFound_ReturnsFailure()
     {
         // Arrange
         var invoiceNumber = "NON-EXISTENT";
@@ -282,8 +331,27 @@ public class InvoiceServiceTests
         var result = await _sut.DeleteAsync(invoiceNumber);
 
         // Assert
-        result.Should().BeFalse();
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain(invoiceNumber);
+        result.Error.Should().Contain("not found");
         _cacheServiceMock.Verify(x => x.DeleteAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenExceptionThrown_ReturnsFailure()
+    {
+        // Arrange
+        var invoiceNumber = "INV-ERROR";
+        _invoiceRepositoryMock.Setup(x => x.DeleteAsync(invoiceNumber))
+            .ThrowsAsync(new Exception("Database error"));
+
+        // Act
+        var result = await _sut.DeleteAsync(invoiceNumber);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("Failed to delete invoice");
+        result.Error.Should().Contain("Database error");
     }
 
     #endregion

@@ -44,9 +44,9 @@ public class InvoiceController(
     [HttpDelete("{invoiceNumber}")]
     public async Task<IActionResult> Delete(string invoiceNumber)
     {
-        var deleted = await invoiceService.DeleteAsync(invoiceNumber);
-        if (!deleted)
-            return NotFound();
+        var result = await invoiceService.DeleteAsync(invoiceNumber);
+        if (result.IsFailure)
+            return NotFound(new { Error = result.Error });
 
         return NoContent();
     }
@@ -196,8 +196,13 @@ public class InvoiceController(
                 Adjustments = groupedAdjustments
             };
 
-            var saved = await invoiceService.CreateAsync(invoice);
-            savedInvoices.Add(saved);
+            var createResult = await invoiceService.CreateAsync(invoice);
+            if (createResult.IsFailure)
+            {
+                extractionErrors.Add($"Invoice '{invoiceNumber}': {createResult.Error}");
+                continue;
+            }
+            savedInvoices.Add(createResult.Value!);
         }
 
         if (extractionErrors.Count > 0)

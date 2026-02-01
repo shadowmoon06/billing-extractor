@@ -49,47 +49,62 @@ public class InvoiceService(
         return summaries;
     }
 
-    public async Task<Invoice> CreateAsync(Invoice invoice)
+    public async Task<Result<Invoice>> CreateAsync(Invoice invoice)
     {
-        // Check if a soft-deleted invoice exists with the same invoice number
-        var deletedInvoice = await invoiceRepository.GetDeletedByInvoiceNumberAsync(invoice.InvoiceNumber);
-
-        Invoice result;
-        if (deletedInvoice is not null)
+        try
         {
-            // Restore the soft-deleted invoice with new data
-            result = await invoiceRepository.RestoreAsync(deletedInvoice, invoice);
+            // Check if a soft-deleted invoice exists with the same invoice number
+            var deletedInvoice = await invoiceRepository.GetDeletedByInvoiceNumberAsync(invoice.InvoiceNumber);
+
+            Invoice result;
+            if (deletedInvoice is not null)
+            {
+                // Restore the soft-deleted invoice with new data
+                result = await invoiceRepository.RestoreAsync(deletedInvoice, invoice);
+            }
+            else
+            {
+                // Create new invoice
+                result = await invoiceRepository.CreateAsync(invoice);
+            }
+
+            // Store both summary and detail in cache
+            var detail = MapToDetailDto(result);
+            var summary = MapToSummaryDto(result);
+
+            await Task.WhenAll(
+                cacheRepository.SetDetailAsync(result.InvoiceNumber, detail),
+                cacheRepository.SetSummaryAsync(result.InvoiceNumber, summary),
+                cacheRepository.InvalidateAllSummariesAsync() // Invalidate list cache
+            );
+
+            return Result<Invoice>.Success(result);
         }
-        else
+        catch (Exception ex)
         {
-            // Create new invoice
-            result = await invoiceRepository.CreateAsync(invoice);
+            return Result<Invoice>.Failure($"Failed to create invoice: {ex.Message}");
         }
-
-        // Store both summary and detail in cache
-        var detail = MapToDetailDto(result);
-        var summary = MapToSummaryDto(result);
-
-        await Task.WhenAll(
-            cacheRepository.SetDetailAsync(result.InvoiceNumber, detail),
-            cacheRepository.SetSummaryAsync(result.InvoiceNumber, summary),
-            cacheRepository.InvalidateAllSummariesAsync() // Invalidate list cache
-        );
-
-        return result;
     }
 
-    public async Task<bool> DeleteAsync(string invoiceNumber)
+    public async Task<Result<bool>> DeleteAsync(string invoiceNumber)
     {
-        var deleted = await invoiceRepository.DeleteAsync(invoiceNumber);
-
-        if (deleted)
+        try
         {
-            // Remove from cache
-            await cacheRepository.DeleteAsync(invoiceNumber);
-        }
+            var deleted = await invoiceRepository.DeleteAsync(invoiceNumber);
 
-        return deleted;
+            if (deleted)
+            {
+                // Remove from cache
+                await cacheRepository.DeleteAsync(invoiceNumber);
+                return Result<bool>.Success(true);
+            }
+
+            return Result<bool>.Failure($"Invoice '{invoiceNumber}' not found");
+        }
+        catch (Exception ex)
+        {
+            return Result<bool>.Failure($"Failed to delete invoice: {ex.Message}");
+        }
     }
 
     private static InvoiceDetailDto MapToDetailDto(Invoice invoice)
