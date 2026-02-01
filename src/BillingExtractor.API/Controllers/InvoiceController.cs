@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using BillingExtractor.API.Configurations;
 using BillingExtractor.Business.Interfaces;
 using BillingExtractor.Data.Entities;
@@ -14,6 +15,7 @@ public class InvoiceController(
     IInvoiceExtractionService invoiceExtractionService) : BaseController
 {
     private readonly ImageUploadSettings _imageSettings = imageUploadSettings.Value;
+    private const int MaxConcurrentExtractions = 5;
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -82,17 +84,19 @@ public class InvoiceController(
             return BadRequest(new { Errors = errors });
         }
 
-        // Extract info from all images
-        var extractionResults = new List<(string FileName, Business.Models.InvoiceExtractedInfo Info)>();
-        foreach (var image in images)
+        // Extract info from all images with limited concurrency
+        var extractionResults = new ConcurrentBag<(string FileName, Business.Models.InvoiceExtractedInfo Info)>();
+        var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = MaxConcurrentExtractions };
+
+        await Parallel.ForEachAsync(images, parallelOptions, async (image, ct) =>
         {
             using var memoryStream = new MemoryStream();
-            await image.CopyToAsync(memoryStream);
+            await image.CopyToAsync(memoryStream, ct);
             var imageBytes = memoryStream.ToArray();
 
             var extractedInfo = await invoiceExtractionService.ExtractFromImageAsync(imageBytes, image.ContentType);
             extractionResults.Add((image.FileName, extractedInfo));
-        }
+        });
 
         // Group by invoice number and insert
         var groupedByInvoice = extractionResults
