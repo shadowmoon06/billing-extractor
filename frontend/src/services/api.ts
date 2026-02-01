@@ -10,6 +10,7 @@ export interface ExtractInvoiceResponse {
     totalAmount: number;
   }>;
   duplicateInvoiceNumbers: string[];
+  amountMismatchWarnings: string[];
 }
 
 export async function extractInvoice(files: File[]): Promise<ExtractInvoiceResponse> {

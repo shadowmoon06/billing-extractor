@@ -167,6 +167,17 @@ function UploadInvoiceModal({ onClose, onSuccess }: UploadInvoiceModalProps) {
                 </div>
               )}
 
+              {result.amountMismatchWarnings?.length > 0 && (
+                <div className="result-warning">
+                  <h4>Amount Mismatch Warnings ({result.amountMismatchWarnings.length})</h4>
+                  <ul>
+                    {result.amountMismatchWarnings.map((warning, index) => (
+                      <li key={index}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {result.savedInvoices.length === 0 && result.duplicateInvoiceNumbers.length === 0 && (
                 <div className="result-info">
                   <p>No invoices were saved. Please check the uploaded images.</p>

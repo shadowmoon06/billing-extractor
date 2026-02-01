@@ -132,6 +132,8 @@ public class InvoiceController(
 
         var savedInvoices = new List<Invoice>();
         var duplicateInvoiceNumbers = new List<string>();
+        var amountMismatchWarnings = new List<string>();
+
         foreach (var group in groupedByInvoice)
         {
             // Take the first extraction result for invoice metadata
@@ -166,7 +168,20 @@ public class InvoiceController(
             var adjustmentsTotal = groupedAdjustments.Sum(adj => adj.Amount);
 
             // Total = items + adjustments
-            var totalAmount = itemsTotal + adjustmentsTotal;
+            var calculatedTotal = itemsTotal + adjustmentsTotal;
+
+            // Get extracted total from image (sum from all pages for this invoice)
+            var extractedTotal = group.Sum(g => g.Info.TotalAmount ?? 0);
+
+            // Compare extracted vs calculated total (allow small rounding difference)
+            if (extractedTotal > 0 && Math.Abs(extractedTotal - calculatedTotal) > 0.01m)
+            {
+                amountMismatchWarnings.Add(
+                    $"Invoice '{firstInfo.InvoiceNumber}': Extracted total ({extractedTotal:C}) differs from calculated total ({calculatedTotal:C})");
+            }
+
+            // Use calculated total for consistency
+            var totalAmount = calculatedTotal;
 
             var invoice = new Invoice
             {
@@ -194,7 +209,8 @@ public class InvoiceController(
         {
             ExtractedCount = extractionResults.Count,
             SavedInvoices = savedInvoices,
-            DuplicateInvoiceNumbers = duplicateInvoiceNumbers
+            DuplicateInvoiceNumbers = duplicateInvoiceNumbers,
+            AmountMismatchWarnings = amountMismatchWarnings
         });
     }
 }
