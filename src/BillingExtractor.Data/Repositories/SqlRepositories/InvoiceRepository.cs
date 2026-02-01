@@ -16,6 +16,15 @@ public class InvoiceRepository(SqlContext context) : IInvoiceRepository
             .FirstOrDefaultAsync(i => i.InvoiceNumber == invoiceNumber);
     }
 
+    public async Task<Invoice?> GetDeletedByInvoiceNumberAsync(string invoiceNumber)
+    {
+        return await context.Invoices
+            .Include(i => i.Items)
+            .Include(i => i.Adjustments)
+            .Where(i => i.DeletedAt != null)
+            .FirstOrDefaultAsync(i => i.InvoiceNumber == invoiceNumber);
+    }
+
     public async Task<IEnumerable<Invoice>> GetAllAsync()
     {
         return await context.Invoices
@@ -41,5 +50,24 @@ public class InvoiceRepository(SqlContext context) : IInvoiceRepository
         invoice.DeletedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<Invoice> RestoreAsync(Invoice existingInvoice, Invoice newData)
+    {
+        // Update invoice properties
+        existingInvoice.IssuedDate = newData.IssuedDate;
+        existingInvoice.VendorName = newData.VendorName;
+        existingInvoice.TotalAmount = newData.TotalAmount;
+        existingInvoice.DeletedAt = null;
+
+        // Replace items and adjustments (owned entities stored as JSON)
+        existingInvoice.Items.Clear();
+        existingInvoice.Items.AddRange(newData.Items);
+
+        existingInvoice.Adjustments.Clear();
+        existingInvoice.Adjustments.AddRange(newData.Adjustments);
+
+        await context.SaveChangesAsync();
+        return existingInvoice;
     }
 }
