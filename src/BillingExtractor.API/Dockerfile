@@ -6,12 +6,18 @@ WORKDIR /src
 COPY src/BillingExtractor.API/BillingExtractor.API.csproj src/BillingExtractor.API/
 COPY src/BillingExtractor.Business/BillingExtractor.Business.csproj src/BillingExtractor.Business/
 COPY src/BillingExtractor.Data/BillingExtractor.Data.csproj src/BillingExtractor.Data/
+COPY tests/BillingExtractor.Business.Tests/BillingExtractor.Business.Tests.csproj tests/BillingExtractor.Business.Tests/
 
-# Restore dependencies
+# Restore dependencies (including test project)
 RUN dotnet restore src/BillingExtractor.API/BillingExtractor.API.csproj
+RUN dotnet restore tests/BillingExtractor.Business.Tests/BillingExtractor.Business.Tests.csproj
 
-# Copy source code
+# Copy source code and tests
 COPY src/ src/
+COPY tests/ tests/
+
+# Run tests (build fails if tests fail)
+RUN dotnet test tests/BillingExtractor.Business.Tests/BillingExtractor.Business.Tests.csproj -c Release --no-restore
 
 # Build and publish
 WORKDIR /src/src/BillingExtractor.API
