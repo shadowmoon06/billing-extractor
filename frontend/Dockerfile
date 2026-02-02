@@ -11,9 +11,15 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Remove any .env files that might override build args (in case .dockerignore doesn't work)
+RUN rm -f .env .env.* 2>/dev/null || true
+
 # Build argument for API URL
 ARG VITE_API_URL=http://localhost:8080
 ENV VITE_API_URL=$VITE_API_URL
+
+# Debug: print the API URL being used
+RUN echo "Building with VITE_API_URL=$VITE_API_URL"
 
 # Build the application
 RUN npm run build
