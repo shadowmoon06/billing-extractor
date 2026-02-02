@@ -7,6 +7,6 @@ public interface IInvoiceService
 {
     Task<InvoiceDetailDto?> GetByInvoiceNumberAsync(string invoiceNumber);
     Task<IEnumerable<InvoiceSummaryDto>> GetAllAsync();
-    Task<Invoice> CreateAsync(Invoice invoice);
-    Task<bool> DeleteAsync(string invoiceNumber);
+    Task<Result<Invoice>> CreateAsync(Invoice invoice);
+    Task<Result<bool>> DeleteAsync(string invoiceNumber);
 }

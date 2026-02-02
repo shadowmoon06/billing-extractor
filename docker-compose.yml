@@ -49,6 +49,8 @@ services:
       - PostgreSQL__Password=${POSTGRES_PASSWORD}
       # Override Redis connection string
       - ConnectionStrings__Redis=redis:6379
+      # Override CORS allowed origins (use __0, __1 for array items)
+      - Cors__AllowedOrigins__0=http://localhost:${FRONTEND_PORT}
     ports:
       - "${API_PORT}:8080"
     volumes:
@@ -66,7 +68,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://localhost:${API_PORT}
+        - VITE_API_URL=http://localhost:${API_PORT:-8080}
     container_name: billingextractor-frontend
     ports:
       - "${FRONTEND_PORT}:80"
