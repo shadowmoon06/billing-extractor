@@ -24,6 +24,8 @@ namespace BillingExtractor.Data.Migrations
                     TotalAmount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Adjustments = table.Column<string>(type: "jsonb", nullable: true),
                     Items = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
@@ -34,7 +36,8 @@ namespace BillingExtractor.Data.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Invoices_InvoiceNumber",
                 table: "Invoices",
-                column: "InvoiceNumber");
+                column: "InvoiceNumber",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Invoices_VendorName",
